@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+BASE_SYSTEM="$1"
+shift
+HDD_IMAGE="$1"
+shift
+MEMORY="$1"
+shift
 
 # qemu-img create -f qcow2 mac_hdd_ng.img 128G
 #
@@ -13,12 +23,14 @@
 MY_OPTIONS="+pcid,+ssse3,+sse4.2,+popcnt,+avx,+aes,+xsave,+xsaveopt,check"
 
 # OVMF=./firmware
-OVMF="./backup"
+OVMF="$DIR/backup"
 
 # This causes high cpu usage on the *host* side
 # qemu-system-x86_64 -enable-kvm -m 3072 -cpu Penryn,vendor=GenuineIntel,+invtsc,vmware-cpuid-freq=on,hypervisor=off,vmx=on,kvm=off,$MY_OPTIONS\
 
-qemu-system-x86_64 -enable-kvm -m 3072 -cpu Penryn,kvm=on,vendor=GenuineIntel,+invtsc,vmware-cpuid-freq=on,$MY_OPTIONS\
+# Following 'User Mode Networking' section from 'networking-qemu-kvm-howto.txt'
+
+qemu-system-x86_64 -enable-kvm -m $MEMORY -cpu Penryn,kvm=on,vendor=GenuineIntel,+invtsc,vmware-cpuid-freq=on,$MY_OPTIONS\
 	  -machine q35 \
 	  -smp 4,cores=2 \
 	  -usb -device usb-kbd -device usb-mouse \
@@ -28,12 +40,12 @@ qemu-system-x86_64 -enable-kvm -m 3072 -cpu Penryn,kvm=on,vendor=GenuineIntel,+i
 	  -smbios type=2 \
 	  -device ich9-intel-hda -device hda-duplex \
 	  -device ich9-ahci,id=sata \
-	  -drive id=Clover,if=none,snapshot=on,format=qcow2,file=./'Catalina/CloverNG.qcow2' \
+	  -drive id=Clover,if=none,snapshot=on,format=qcow2,file=$DIR/Catalina/CloverNG.qcow2 \
 	  -device ide-hd,bus=sata.2,drive=Clover \
 	  -device ide-hd,bus=sata.3,drive=InstallMedia \
-	  -drive id=InstallMedia,if=none,file=BaseSystem.img,format=raw \
-	  -drive id=MacHDD,if=none,file=./mac_hdd_ng.img,format=qcow2 \
+	  -drive id=InstallMedia,if=none,file=$BASE_SYSTEM,format=raw \
+	  -drive id=MacHDD,if=none,file=$HDD_IMAGE,format=qcow2 \
 	  -device ide-hd,bus=sata.4,drive=MacHDD \
-	  -netdev tap,id=net0,ifname=tap0,script=no,downscript=no -device vmxnet3,netdev=net0,id=net0,mac=52:54:00:c9:18:27 \
-	  -monitor stdio \
+	  -netdev user,id=net0 -device vmxnet3,netdev=net0,id=net0,mac=52:54:00:c9:18:27 \
+	  -monitor unix:qemu-monitor-socket,server,nowait \
 	  -vga vmware
