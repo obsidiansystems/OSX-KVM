@@ -9,6 +9,8 @@ HDD_IMAGE="$1"
 shift
 MEMORY="$1"
 shift
+SOCKET="$1"
+shift
 
 # qemu-img create -f qcow2 mac_hdd_ng.img 128G
 #
@@ -47,5 +49,5 @@ qemu-system-x86_64 -enable-kvm -m $MEMORY -cpu Penryn,kvm=on,vendor=GenuineIntel
 	  -drive id=MacHDD,if=none,file=$HDD_IMAGE,format=qcow2 \
 	  -device ide-hd,bus=sata.4,drive=MacHDD \
 	  -netdev user,id=net0 -device vmxnet3,netdev=net0,id=net0,mac=52:54:00:c9:18:27 \
-	  -monitor unix:qemu-monitor-socket,server,nowait \
+	  -monitor unix:$SOCKET,server,nowait \
 	  -vga vmware
